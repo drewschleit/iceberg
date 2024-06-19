@@ -341,14 +341,14 @@ For more details, please read [S3 ACL Documentation](https://docs.aws.amazon.com
 S3 and many other cloud storage services [throttle requests based on object prefix](https://aws.amazon.com/premiumsupport/knowledge-center/s3-request-limit-avoid-throttling/).
 Data stored in S3 with a traditional Hive storage layout can face S3 request throttling as objects are stored under the same file path prefix.
 
-Iceberg by default uses the Hive storage layout but can be switched to use the `ObjectStoreLocationProvider`. 
-With `ObjectStoreLocationProvider`, a deterministic hash is generated for each stored file, with the hash appended 
+Iceberg by default uses the Hive storage layout but can be switched to use the `S3LocationProvider`.
+With `S3LocationProvider`, a deterministic hash is generated for each stored file, with the hash appended 
 directly after the `write.data.path`. This ensures files written to s3 are equally distributed across multiple [prefixes](https://aws.amazon.com/premiumsupport/knowledge-center/s3-object-key-naming-pattern/) in the S3 bucket. Resulting in minimized throttling and maximized throughput for S3-related IO operations. When using `ObjectStoreLocationProvider` having a shared and short `write.data.path` across your Iceberg tables will improve performance.
 
 For more information on how S3 scales API QPS, check out the 2018 re:Invent session on [Best Practices for Amazon S3 and Amazon S3 Glacier](https://youtu.be/rHeTn9pHNKo?t=3219). At [53:39](https://youtu.be/rHeTn9pHNKo?t=3219) it covers how S3 scales/partitions & at [54:50](https://youtu.be/rHeTn9pHNKo?t=3290) it discusses the 30-60 minute wait time before new partitions are created.
 
-To use the `ObjectStorageLocationProvider` add `'write.object-storage.enabled'=true` in the table's properties. 
-Below is an example Spark SQL command to create a table using the `ObjectStorageLocationProvider`:
+To use the `S3LocationProvider` add `'write.location-provider.impl'='org.apache.iceberg.aws.s3.S3LocationProvider'` in the table's properties. 
+Below is an example Spark SQL command to create a table using the `S3LocationProvider`:
 ```sql
 CREATE TABLE my_catalog.my_ns.my_table (
     id bigint,
@@ -356,7 +356,7 @@ CREATE TABLE my_catalog.my_ns.my_table (
     category string)
 USING iceberg
 OPTIONS (
-    'write.object-storage.enabled'=true, 
+    'write.location-provider.impl'='org.apache.iceberg.aws.s3.S3LocationProvider', 
     'write.data.path'='s3://my-table-data-bucket')
 PARTITIONED BY (category);
 ```
@@ -366,17 +366,13 @@ We can then insert a single row into this new table
 INSERT INTO my_catalog.my_ns.my_table VALUES (1, "Pizza", "orders");
 ```
 
-Which will write the data to S3 with a hash (`2d3905f8`) appended directly after the `write.object-storage.path`, ensuring reads to the table are spread evenly  across [S3 bucket prefixes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html), and improving performance.
+Which will write the data to S3 with a hash (`001001010110100110110010`) appended directly after the `write.object-storage.path`, ensuring reads to the table are spread evenly  across [S3 bucket prefixes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html), and improving performance.
 ```
-s3://my-table-data-bucket/2d3905f8/my_ns.db/my_table/category=orders/00000-0-5affc076-96a4-48f2-9cd2-d5efbc9f0c94-00001.parquet
+s3://my-table-data-bucket/001001010110100110110010/my_ns.db/my_table/category=orders/00000-0-5affc076-96a4-48f2-9cd2-d5efbc9f0c94-00001.parquet
 ```
-
-Note, the path resolution logic for `ObjectStoreLocationProvider` is `write.data.path` then `<tableLocation>/data`.
-However, for the older versions up to 0.12.0, the logic is as follows:
-- before 0.12.0, `write.object-storage.path` must be set.
-- at 0.12.0, `write.object-storage.path` then `write.folder-storage.path` then `<tableLocation>/data`.
-
 For more details, please refer to the [LocationProvider Configuration](custom-catalog.md#custom-location-provider-implementation) section.  
+
+`S3LocationProvider` extends the behavior of `ObjectStoreLocationProvider` to be optimized for S3 autoscaling.
 
 ### S3 Strong Consistency
 

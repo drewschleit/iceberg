@@ -105,7 +105,7 @@ public class LocationProviders {
     }
   }
 
-  static class ObjectStoreLocationProvider implements LocationProvider {
+  public static class ObjectStoreLocationProvider implements LocationProvider {
 
     private static final HashFunction HASH_FUNC = Hashing.murmur3_32_fixed();
     private static final BaseEncoding BASE64_ENCODER = BaseEncoding.base64Url().omitPadding();
@@ -113,7 +113,7 @@ public class LocationProviders {
     private final String storageLocation;
     private final String context;
 
-    ObjectStoreLocationProvider(String tableLocation, Map<String, String> properties) {
+    protected ObjectStoreLocationProvider(String tableLocation, Map<String, String> properties) {
       this.storageLocation =
           LocationUtil.stripTrailingSlash(dataLocation(properties, tableLocation));
       // if the storage location is within the table prefix, don't add table and database name
@@ -140,12 +140,13 @@ public class LocationProviders {
     }
 
     @Override
-    public String newDataLocation(PartitionSpec spec, StructLike partitionData, String filename) {
+    public final String newDataLocation(
+        PartitionSpec spec, StructLike partitionData, String filename) {
       return newDataLocation(String.format("%s/%s", spec.partitionToPath(partitionData), filename));
     }
 
     @Override
-    public String newDataLocation(String filename) {
+    public final String newDataLocation(String filename) {
       String hash = computeHash(filename);
       if (context != null) {
         return String.format("%s/%s/%s/%s", storageLocation, hash, context, filename);
@@ -171,7 +172,7 @@ public class LocationProviders {
       return resolvedContext;
     }
 
-    private String computeHash(String fileName) {
+    protected String computeHash(String fileName) {
       byte[] bytes = TEMP.get();
       HashCode hash = HASH_FUNC.hashString(fileName, StandardCharsets.UTF_8);
       hash.writeBytesTo(bytes, 0, 4);
