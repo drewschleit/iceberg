@@ -304,4 +304,13 @@ public class TestLocationProvider extends TestBase {
 
     assertThat(partitionString).isEqualTo("data%231=val%231");
   }
+
+  @TestTemplate
+  public void testObjectStoreHashInjection() {
+    table.updateProperties().set(TableProperties.OBJECT_STORE_ENABLED, "true").commit();
+    assertThat(table.locationProvider().newDataLocation("a")).contains("data/smklPA/a");
+    assertThat(table.locationProvider().newDataLocation("b")).contains("data/A37elQ/b");
+    assertThat(table.locationProvider().newDataLocation("c")).contains("data/X9Yy4Q/c");
+    assertThat(table.locationProvider().newDataLocation("d")).contains("data/cxQZJw/d");
+  }
 }
